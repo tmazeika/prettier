@@ -14,6 +14,7 @@ const {
   iterateCallArgumentsPath,
   isNextLineEmpty,
   isCallExpression,
+  isStringLiteral,
 } = require("../utils");
 
 const {
@@ -216,7 +217,8 @@ function couldGroupArg(arg, arrowChainRecursion = false) {
           (isCallExpression(arg.body) ||
             arg.body.type === "ConditionalExpression")) ||
         isJsxNode(arg.body))) ||
-    arg.type === "DoExpression"
+    arg.type === "DoExpression" ||
+    arg.type === "ModuleExpression"
   );
 }
 
@@ -248,6 +250,14 @@ function shouldGroupFirstArg(args) {
   }
 
   const [firstArg, secondArg] = args;
+
+  if (
+    firstArg.type === "ModuleExpression" &&
+    isTypeModuleObjectExpression(secondArg)
+  ) {
+    return true;
+  }
+
   return (
     !hasComment(firstArg) &&
     (firstArg.type === "FunctionExpression" ||
@@ -276,6 +286,20 @@ function isNonEmptyBlockStatement(node) {
     node.type === "BlockStatement" &&
     (node.body.some((node) => node.type !== "EmptyStatement") ||
       hasComment(node, CommentCheckFlags.Dangling))
+  );
+}
+
+// { type: "module" }
+function isTypeModuleObjectExpression(node) {
+  return (
+    node.type === "ObjectExpression" &&
+    node.properties.length === 1 &&
+    (node.properties[0].type === "ObjectProperty" ||
+      node.properties[0].type === "Property") &&
+    node.properties[0].key.type === "Identifier" &&
+    node.properties[0].key.name === "type" &&
+    isStringLiteral(node.properties[0].value) &&
+    node.properties[0].value.value === "module"
   );
 }
 
